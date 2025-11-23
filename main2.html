@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>九九乘法大挑戰</title>
+    <style>
+        /* --- 基礎設定 --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background-color: #FFF8E7;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none; /* 預設隱藏，由 JS 控制顯示 */
+            flex-direction: column;
+        }
+
+        .active {
+            display: flex;
+        }
+
+        .center-flex {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        /* --- 歡迎層 (解決 iOS 音效鎖定問題) --- */
+        #overlay-start {
+            z-index: 999;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* --- 首頁樣式 --- */
+        #home-zone-1 { /* 標題 */
+            height: 25%;
+            font-size: 3rem;
+            font-weight: 900;
+            color: #FF6B6B;
+            text-shadow: 2px 2px 0px #fff;
+        }
+
+        #home-zone-2 { /* 說明文字 */
+            height: 25%;
+            padding: 0 20px;
+            font-size: 1.2rem;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        #home-zone-3 { /* 選項區 */
+            height: 30%;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            padding: 10px 20px;
+        }
+
+        .num-toggle {
+            background-color: #eee;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1.5rem;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .num-toggle.selected {
+            background-color: #4ECDC4;
+            border-color: #45b7af;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 3px 0 #2a8a83;
+        }
+
+        #home-zone-4 { /* 開始按鈕區 */
+            height: 20%;
+        }
+
+        .btn-ellipse {
+            width: 60%;
+            padding: 15px 0;
+            border-radius: 50px;
+            border: none;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+            transition: transform 0.1s;
+        }
+        .btn-ellipse:active { transform: translateY(4px); box-shadow: none; }
+        .bg-start { background-color: #FF6B6B; }
+
+        /* --- 遊戲頁樣式 --- */
+        #game-zone-1 { /* 回饋與動畫 */
+            height: 20%;
+            font-size: 1.8rem;
+            font-weight: bold;
+            flex-direction: column;
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+        }
+        .feedback-text { margin-bottom: 5px; }
+        .feedback-anim { font-size: 3rem; height: 60px; }
+
+        /* 動畫定義 */
+        @keyframes clap {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.3) rotate(-10deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        .anim-clap { animation: clap 0.5s ease-in-out infinite; }
+        .anim-shake { animation: shake 0.3s ease-in-out infinite; }
+
+        #game-zone-2 { /* 分數 */
+            height: 5%;
+            background-color: #f0f0f0;
+            font-size: 1rem;
+            color: #333;
+            justify-content: flex-end;
+            padding-right: 20px;
+        }
+
+        #game-zone-3 { /* 題目 */
+            height: 15%;
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #2c3e50;
+        }
+
+        #game-zone-4 { /* 答案選項 40% */
+            height: 40%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 15px;
+            padding: 15px;
+        }
+
+        .ans-btn {
+            background-color: #FFB6C1; /* 淺粉色 */
+            border: none;
+            border-radius: 8px; /* 長方形 */
+            font-size: 2.2rem;
+            color: #444;
+            box-shadow: 0 4px 5px rgba(0,0,0,0.1);
+        }
+        .ans-btn:active { transform: scale(0.98); }
+        .ans-btn.disabled { opacity: 0.6; pointer-events: none; }
+
+        #game-zone-5 { /* 控制按鈕 20% */
+            height: 20%;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .btn-control {
+            width: 40%;
+            height: 60%;
+            border-radius: 50px;
+            border: none;
+            font-size: 1.3rem;
+            color: white;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+        }
+        .bg-end { background-color: #95a5a6; }
+        .bg-next { background-color: #2ECC71; }
+
+        /* --- 結算彈窗 --- */
+        #modal-result {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-box {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            width: 80%;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="overlay-start" class="screen active center-flex" onclick="initApp()">
+        <div>
+            <h1>九九乘法大挑戰</h1>
+            <p>👆 點擊螢幕開啟遊戲</p>
+        </div>
+    </div>
+
+    <div id="screen-home" class="screen">
+        <div id="home-zone-1" class="center-flex">九九乘法</div>
+        <div id="home-zone-2" class="center-flex">
+            九九乘法比賽遊戲，計時3分鐘，以下可複選要考的範圍，再按“遊戲開始”鍵。
+        </div>
+        <div id="home-zone-3">
+            </div>
+        <div id="home-zone-4" class="center-flex">
+            <button class="btn-ellipse bg-start" onclick="startGame()">遊戲開始</button>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <div id="game-zone-1" class="center-flex">
+            <div id="feedback-text" class="feedback-text"></div>
+            <div id="feedback-anim" class="feedback-anim"></div>
+        </div>
+        <div id="game-zone-2" class="center-flex">
+            你答對 <span id="score-val" style="color:red; margin:0 5px; font-weight:bold;">0</span> 題 | 剩餘 <span id="time-val" style="margin-left:5px">180</span> 秒
+        </div>
+        <div id="game-zone-3" class="center-flex">
+            </div>
+        <div id="game-zone-4">
+            <button class="ans-btn" onclick="checkAnswer(0)"></button>
+            <button class="ans-btn" onclick="checkAnswer(1)"></button>
+            <button class="ans-btn" onclick="checkAnswer(2)"></button>
+            <button class="ans-btn" onclick="checkAnswer(3)"></button>
+        </div>
+        <div id="game-zone-5">
+            <button class="btn-control bg-end" onclick="endGameByUser()">結束</button>
+            <button class="btn-control bg-next" onclick="nextQuestion()">下一題</button>
+        </div>
+    </div>
+
+    <div id="modal-result">
+        <div class="modal-box">
+            <h2 style="color:#2ECC71">時間到！</h2>
+            <p id="final-msg" style="font-size:1.5rem; margin:20px 0;">恭喜！你答對 ? 題</p>
+            <button class="btn-ellipse bg-start" onclick="location.reload()">重新開始</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 全域變數 ---
+        let audioCtx;
+        let selectedNumbers = new Set([2,3,4,5,6,7,8,9]); // 預設全選
+        let score = 0;
+        let timerSeconds = 180;
+        let timerInterval;
+        let currentAnswer = 0;
+        let isAnswered = false;
+        
+        // --- 初始化與 TTS ---
+        function initApp() {
+            // 1. 初始化 AudioContext (iOS 必須在點擊事件中觸發)
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            audioCtx.resume();
+
+            // 2. 切換畫面
+            document.getElementById('overlay-start').classList.remove('active');
+            document.getElementById('screen-home').classList.add('active');
+
+            // 3. 產生首頁按鈕
+            renderNumberToggles();
+
+            // 4. 觸發語音朗讀
+            speakText("九九乘法比賽遊戲，計時3分鐘，以下可複選要考的範圍，再按“遊戲開始”鍵。");
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // --- 首頁邏輯 ---
+        function renderNumberToggles() {
+            const container = document.getElementById('home-zone-3');
+            container.innerHTML = '';
+            for (let i = 2; i <= 9; i++) {
+                const btn = document.createElement('div');
+                btn.className = 'num-toggle selected'; // 預設全選
+                btn.innerText = i;
+                btn.onclick = () => toggleNumber(i, btn);
+                container.appendChild(btn);
+            }
+        }
+
+        function toggleNumber(num, btn) {
+            if (selectedNumbers.has(num)) {
+                if (selectedNumbers.size > 1) { // 至少保留一個
+                    selectedNumbers.delete(num);
+                    btn.classList.remove('selected');
+                }
+            } else {
+                selectedNumbers.add(num);
+                btn.classList.add('selected');
+            }
+        }
+
+        function startGame() {
+            if (selectedNumbers.size === 0) return;
+            
+            // 停止首頁語音
+            window.speechSynthesis.cancel();
+
+            // 切換畫面
+            document.getElementById('screen-home').classList.remove('active');
+            document.getElementById('screen-game').classList.add('active');
+
+            // 初始化遊戲數據
+            score = 0;
+            timerSeconds = 180;
+            updateScoreUI();
+            
+            // 啟動計時器
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                document.getElementById('time-val').innerText = timerSeconds;
+                if (timerSeconds <= 0) {
+                    timeUp();
+                }
+            }, 1000);
+
+            // 出第一題
+            nextQuestion();
+        }
+
+        // --- 遊戲邏輯 ---
+        function nextQuestion() {
+            if (timerSeconds <= 0) return;
+
+            // 重置 UI
+            isAnswered = false;
+            document.getElementById('feedback-text').innerText = "";
+            document.getElementById('feedback-text').className = "feedback-text";
+            document.getElementById('feedback-anim').innerText = "";
+            document.getElementById('feedback-anim').className = "feedback-anim";
+
+            const opts = document.querySelectorAll('.ans-btn');
+            opts.forEach(btn => {
+                btn.classList.remove('disabled');
+                btn.style.backgroundColor = "#FFB6C1"; // 恢復淺粉色
+            });
+
+            // 產生題目
+            const multipliers = Array.from(selectedNumbers);
+            const num1 = multipliers[Math.floor(Math.random() * multipliers.length)];
+            const num2 = Math.floor(Math.random() * 9) + 1;
+            currentAnswer = num1 * num2;
+
+            document.getElementById('game-zone-3').innerText = `${num1} × ${num2} = ?`;
+
+            // 產生連續數字選項
+            generateOptions(currentAnswer);
+        }
+
+        function generateOptions(ans) {
+            // 產生包含正確答案的連續 4 個數字
+            // 隨機偏移量，讓正確答案可能在第 1, 2, 3, 4 個位置 (數值上)
+            let start = ans - Math.floor(Math.random() * 4);
+            if (start < 1) start = 1; // 避免負數或0
+
+            let vals = [start, start+1, start+2, start+3];
+            
+            // 洗牌位置 (顯示位置隨機)
+            vals.sort(() => Math.random() - 0.5);
+
+            const btns = document.querySelectorAll('.ans-btn');
+            btns.forEach((btn, idx) => {
+                btn.innerText = vals[idx];
+                btn.dataset.val = vals[idx];
+            });
+        }
+
+        function checkAnswer(btnIndex) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const btns = document.querySelectorAll('.ans-btn');
+            const clickedBtn = btns[btnIndex];
+            const val = parseInt(clickedBtn.dataset.val);
+
+            // 鎖定所有按鈕
+            btns.forEach(b => b.classList.add('disabled'));
+
+            const feedbackText = document.getElementById('feedback-text');
+            const feedbackAnim = document.getElementById('feedback-anim');
+
+            if (val === currentAnswer) {
+                // 答對
+                score++;
+                updateScoreUI();
+                feedbackText.innerText = "太棒了！你答對了";
+                feedbackText.style.color = "#2ECC71";
+                feedbackAnim.innerText = "👏"; // 拍手
+                feedbackAnim.classList.add('anim-clap');
+                playTone('win');
+                clickedBtn.style.backgroundColor = "#2ECC71"; // 按鈕變綠
+            } else {
+                // 答錯
+                feedbackText.innerText = "喔喔！再想想";
+                feedbackText.style.color = "#E74C3C";
+                feedbackAnim.innerText = "😔"; // 搖頭/失望
+                feedbackAnim.classList.add('anim-shake');
+                playTone('lose');
+                clickedBtn.style.backgroundColor = "#E74C3C"; // 按鈕變紅
+            }
+        }
+
+        function updateScoreUI() {
+            document.getElementById('score-val').innerText = score;
+        }
+
+        function endGameByUser() {
+            clearInterval(timerInterval);
+            location.reload(); // 直接重新整理回到最初狀態
+        }
+
+        function timeUp() {
+            clearInterval(timerInterval);
+            document.getElementById('modal-result').style.display = 'flex';
+            document.getElementById('final-msg').innerText = `恭喜！你答對 ${score} 題`;
+            playTone('win'); // 結束音效
+        }
+
+        // --- 音效處理 (使用 Oscillator) ---
+        function playTone(type) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'win') {
+                // 勝利音效：上行三和弦
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else {
+                // 失敗音效：低頻鋸齒波
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        }
+    </script>
+</body>
+</html>
