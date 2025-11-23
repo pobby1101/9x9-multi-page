@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>九九乘法大挑戰 (iOS修正版)</title>
+    <style>
+        /* 全局設定 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; /* 優化 iOS 字體 */
+            background-color: #fdfbf7;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none; 
+            -webkit-user-select: none; /* iOS 專用禁止選取 */
+            -webkit-touch-callout: none; /* iOS 禁止長按跳出選單 */
+        }
+
+        .center-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* --- 第一區塊：回饋區 (20%) --- */
+        #zone-feedback {
+            height: 20%;
+            font-size: 1.8rem; 
+            font-weight: bold;
+            color: #333;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .correct { color: #28a745 !important; transform: scale(1.1); }
+        .wrong { color: #dc3545 !important; transform: scale(1.1); }
+
+        /* --- 第二區塊：題目區 (20%) --- */
+        #zone-question {
+            height: 20%;
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #2c3e50;
+            background-color: #fff;
+            border-bottom: 2px solid #eee;
+            border-top: 2px solid #eee;
+            letter-spacing: 2px;
+        }
+
+        /* --- 第三區塊：答案選擇區 (40%) --- */
+        #zone-options {
+            height: 40%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 15px;
+            padding: 20px;
+        }
+
+        .option-btn {
+            background-color: #FFB6C1; 
+            border: none;
+            border-radius: 12px;
+            font-size: 2.2rem;
+            color: #444;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* 確保 iOS 按鈕文字清楚 */
+            -webkit-appearance: none; 
+        }
+
+        .option-btn.selected {
+            background-color: #ff8fa3;
+            border: 4px solid #ff5c8d;
+            color: #fff;
+            font-weight: bold;
+            transform: scale(0.98);
+        }
+        
+        .option-btn.disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* --- 第四區塊：控制區 (20%) --- */
+        #zone-controls {
+            height: 20%;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .control-btn {
+            width: 45%;
+            height: 60%;
+            border-radius: 50px; 
+            border: none;
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+            transition: transform 0.1s, box-shadow 0.1s;
+            -webkit-appearance: none;
+        }
+
+        .control-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 rgba(0,0,0,0.2);
+        }
+
+        #btn-submit { background-color: #4a90e2; }
+        #btn-next { background-color: #50e3c2; color: #333; }
+
+    </style>
+</head>
+<body>
+
+    <div id="zone-feedback" class="center-content"></div>
+    <div id="zone-question" class="center-content"></div>
+
+    <div id="zone-options">
+        <div class="option-btn" onclick="selectOption(0)" id="opt-0"></div>
+        <div class="option-btn" onclick="selectOption(1)" id="opt-1"></div>
+        <div class="option-btn" onclick="selectOption(2)" id="opt-2"></div>
+        <div class="option-btn" onclick="selectOption(3)" id="opt-3"></div>
+    </div>
+
+    <div id="zone-controls">
+        <button id="btn-submit" class="control-btn" onclick="submitAnswer()">答題</button>
+        <button id="btn-next" class="control-btn" onclick="nextQuestion()">下一題</button>
+    </div>
+
+    <script>
+        let currentAnswer = 0;
+        let selectedIndex = -1;
+        let isAnswered = false;
+        
+        // iOS 音效相容修正：不要一開始就建立 Context
+        let audioCtx = null;
+
+        window.onload = function() {
+            nextQuestion();
+        };
+
+        // 初始化音效 (只有在使用者第一次互動時才呼叫)
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    audioCtx = new AudioContext();
+                }
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playTone(freq, type, duration) {
+            // 確保有音效環境
+            if (!audioCtx) initAudio();
+            if (!audioCtx) return; // 如果瀏覽器真的不支援，就靜音但不報錯
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playCorrectSound() {
+            playTone(660, 'sine', 0.1);
+            setTimeout(() => playTone(880, 'sine', 0.4), 100);
+        }
+
+        function playWrongSound() {
+            playTone(150, 'sawtooth', 0.3);
+            setTimeout(() => playTone(120, 'sawtooth', 0.3), 150);
+        }
+
+        function nextQuestion() {
+            selectedIndex = -1;
+            isAnswered = false;
+            
+            const feedback = document.getElementById('zone-feedback');
+            feedback.innerText = "";
+            feedback.className = "center-content";
+            
+            const options = document.querySelectorAll('.option-btn');
+            options.forEach(btn => {
+                btn.classList.remove('selected', 'disabled');
+                btn.style.pointerEvents = 'auto'; 
+            });
+
+            const num1 = Math.floor(Math.random() * 9) + 1;
+            const num2 = Math.floor(Math.random() * 9) + 1;
+            currentAnswer = num1 * num2;
+
+            document.getElementById('zone-question').innerText = `${num1} × ${num2} = ?`;
+
+            generateConsecutiveOptions(currentAnswer);
+        }
+
+        function generateConsecutiveOptions(correct) {
+            let offset = Math.floor(Math.random() * 4); 
+            let startNum = correct - offset;
+            if (startNum < 1) startNum = 1;
+
+            let answersArray = [];
+            for (let i = 0; i < 4; i++) {
+                answersArray.push(startNum + i);
+            }
+
+            answersArray.sort(() => Math.random() - 0.5);
+
+            const options = document.querySelectorAll('.option-btn');
+            options.forEach((btn, index) => {
+                btn.innerText = answersArray[index];
+                btn.dataset.val = answersArray[index];
+            });
+        }
+
+        function selectOption(index) {
+            if (isAnswered) return;
+            
+            // 第一次點擊任何按鈕時，嘗試解鎖音效
+            initAudio();
+
+            selectedIndex = index;
+            const options = document.querySelectorAll('.option-btn');
+            
+            options.forEach((btn, i) => {
+                if (i === index) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.remove('selected');
+                }
+            });
+        }
+
+        function submitAnswer() {
+            if (selectedIndex === -1) return; 
+            if (isAnswered) return; 
+
+            // 答題時也確保解鎖音效
+            initAudio();
+
+            isAnswered = true;
+            const feedback = document.getElementById('zone-feedback');
+            const options = document.querySelectorAll('.option-btn');
+            const selectedValue = parseInt(options[selectedIndex].dataset.val);
+
+            options.forEach(btn => {
+                btn.classList.add('disabled');
+                btn.style.pointerEvents = 'none';
+            });
+
+            if (selectedValue === currentAnswer) {
+                feedback.innerText = "太棒了！你答對了";
+                feedback.className = "center-content correct";
+                playCorrectSound();
+            } else {
+                feedback.innerText = "喔喔！再想想";
+                feedback.className = "center-content wrong";
+                playWrongSound();
+            }
+        }
+    </script>
+</body>
+</html>
