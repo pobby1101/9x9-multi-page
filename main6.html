@@ -459,14 +459,14 @@
         function generateConsecutiveOptions(answer, multiplicand) {
             // 產生包含正確答案的 4 組數字
             // 隨機偏移 offset (0~3)，讓答案出現在不同位置
-            //let start = answer - Math.floor(Math.random() * 4);
-            //if (start < 1) start = 1; // 最小為 1
+            let start = answer - Math.floor(Math.random() * 4);
+            if (start < 1) start = 1; // 最小為 1
             //let optionsArr = [start, start+1, start+2, start+3];
 
             // 產生包含正確答案的 4 組數字
-            if (answer == multiplicand)
-              let optionsArr = [answer, answer+1, answer+2, answer+3];
-            else
+            //if (answer == multiplicand)
+              //let optionsArr = [answer, answer+1, answer+2, answer+3];
+            //else
               let optionsArr = [answer, answer+1, answer+multiplicand, answer-multiplicand];
             
             // 洗牌顯示位置
