@@ -289,8 +289,8 @@
 
     <div id="modal-result">
         <div class="modal-box">
-            <h2 style="color:#2ECC71; font-size:2rem; margin-bottom:10px;">時間到！</h2>
-            <p id="final-msg" style="font-size:1.5rem; margin:20px 0; color:#555;">恭喜！你答對 ? 題</p>
+            <h2 style="color:#2ECC71; font-size:2rem; margin-bottom:10px;">時間到！恭喜！</h2>
+            <p id="final-msg" style="font-size:1.5rem; margin:20px 0; color:#555;">答對 ? 題</p>
             <button class="btn-ellipse bg-start" onclick="location.reload()">重新開始</button>
         </div>
     </div>
@@ -469,7 +469,7 @@
             //if (answer == multiplicand)
               //let optionsArr = [answer, answer+1, answer+2, answer+3];
             //else
-              let optionsArr = [answer, answer+1, answer+multiplicand, answer-multiplicand];
+              let optionsArr = [answer, answer+1, answer+multiplicand, answer-multiplicand+1];
             
             // 洗牌顯示位置
             optionsArr.sort(() => Math.random() - 0.5);
@@ -548,7 +548,7 @@
         function gameOver() {
             clearInterval(timerInterval);
             document.getElementById('modal-result').style.display = 'flex';
-            document.getElementById('final-msg').innerText = `恭喜！你答對 ${score} 題，答錯 ${faultScore} 次`;
+            document.getElementById('final-msg').innerText = `答對 ${score} 題，答錯 ${faultScore} 次`;
             playTone('win'); // 結束時播放一次勝利音效
         }
     </script>
